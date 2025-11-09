@@ -242,7 +242,7 @@ list_remove (struct list_elem *elem) {
 	ASSERT (is_interior (elem));
 	elem->prev->next = elem->next;
 	elem->next->prev = elem->prev;
-	return elem->next;
+	return elem->prev;
 }
 
 /* Removes the front element from LIST and returns it.
@@ -425,7 +425,7 @@ list_insert_ordered (struct list *list, struct list_elem *elem,
 	ASSERT (less != NULL);
 
 	for (e = list_begin (list); e != list_end (list); e = list_next (e))
-		if (less (elem, e, aux))
+		if (less(elem, e, aux))
 			break;
 	return list_insert (e, elem);
 }

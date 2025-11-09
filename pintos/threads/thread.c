@@ -26,7 +26,8 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+struct list ready_list;
+struct list wait_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -59,7 +60,6 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
-static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
 
@@ -109,6 +109,7 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+	list_init(&wait_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -296,14 +297,14 @@ thread_exit (void) {
    may be scheduled again immediately at the scheduler's whim. */
 void
 thread_yield (void) {
-	struct thread *curr = thread_current ();
+	struct thread *curr = thread_current();
 	enum intr_level old_level;
 
-	ASSERT (!intr_context ());
+	ASSERT (!intr_context());
 
-	old_level = intr_disable ();
+	old_level = intr_disable();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		list_push_back(&ready_list, &curr->elem);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -525,15 +526,17 @@ thread_launch (struct thread *th) {
  * This function modify current thread's status to status and then
  * finds another thread to run and switches to it.
  * It's not safe to call printf() in the schedule(). */
-static void
+void
 do_schedule(int status) {
-	ASSERT (intr_get_level () == INTR_OFF);
+	ASSERT (intr_get_level () == INTR_ON);
 	ASSERT (thread_current()->status == THREAD_RUNNING);
+	
 	while (!list_empty (&destruction_req)) {
 		struct thread *victim =
-			list_entry (list_pop_front (&destruction_req), struct thread, elem);
+			list_entry (list_pop_front(&destruction_req), struct thread, elem);
 		palloc_free_page(victim);
 	}
+
 	thread_current ()->status = status;
 	schedule ();
 }
@@ -587,4 +590,13 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+struct list* getwaitlist()
+{
+	return &wait_list;
+}
+struct list* getreadylist()
+{
+	return &ready_list;
 }
