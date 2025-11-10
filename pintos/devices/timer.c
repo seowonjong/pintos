@@ -87,25 +87,17 @@ int64_t
 timer_elapsed (int64_t then) {
 	return timer_ticks () - then;
 }
-bool list_less (const struct list_elem* a,const struct list_elem* b,void* aux)
-{
-	struct thread *f1 = list_entry(a, struct thread, elem);
-	struct thread *f2 = list_entry(b, struct thread, elem);
-	if (f1->waketime < f2->waketime)
-		return true;
-	return false;
-}
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) { // alarm clock 알람시계 설정해두는 미래시간 설정하는거야
 	int64_t start = timer_ticks ();
-	printf("why is this not working fuck that shit bal\n");
 	ASSERT (intr_get_level () == INTR_ON);
-	struct thread* t = thread_current();
-	t->waketime = start + ticks;
-	list_remove(&(t->elem));
-	list_insert_ordered(getwaitlist(), &(t->elem), list_less, NULL);
-	do_schedule(THREAD_BLOCKED);
+	enum intr_level old_level;
+	old_level = intr_disable();
+	thread_current()->waketime = start + ticks;
+	thread_block();
+	intr_set_level(old_level);
+	
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -138,21 +130,17 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
-	volatile struct list_elem* e;
-	
-	for (e = list_begin(getwaitlist()); e != list_end(getwaitlist()); e = list_next(e))
+	struct list_elem* e;
+	for (e = list_begin(getwaitlist()); e != list_end(getwaitlist());)
 	{
 		struct thread* t = list_entry(e, struct thread, elem);
 		if (t->waketime > ticks)
-			continue;
+			break;
 		struct list_elem* temp;
-		temp = list_remove(e);
-		t->status = THREAD_READY;
-		list_insert_ordered(getreadylist(), e, list_less, NULL);
-		e = temp;
+		e = list_remove(e);
+		thread_unblock(t);
+		
 	}
-
-	do_schedule(THREAD_RUNNING);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

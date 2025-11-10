@@ -138,7 +138,7 @@ thread_start (void) {
    Thus, this function runs in an external interrupt context. */
 void
 thread_tick (void) {
-	struct thread *t = thread_current ();
+	struct thread *t = thread_current();
 
 	/* Update statistics. */
 	if (t == idle_thread)
@@ -217,11 +217,23 @@ thread_create (const char *name, int priority,
    This function must be called with interrupts turned off.  It
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
+bool list_less (const struct list_elem* a,const struct list_elem* b,void* aux)
+{
+	struct thread *f1 = list_entry(a, struct thread, elem);
+	struct thread *f2 = list_entry(b, struct thread, elem);
+	if (f1->waketime < f2->waketime)
+		return true;
+	return false;
+}
+
 void
 thread_block (void) {
 	ASSERT (!intr_context ());
 	ASSERT (intr_get_level () == INTR_OFF);
-	thread_current ()->status = THREAD_BLOCKED;
+	struct thread* t = thread_current();
+
+	t->status = THREAD_BLOCKED;
+	list_insert_ordered(getwaitlist(), &(t->elem), list_less, NULL);
 	schedule ();
 }
 
@@ -241,8 +253,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
 	t->status = THREAD_READY;
+	list_push_back (&ready_list, &t->elem);
 	intr_set_level (old_level);
 }
 
@@ -528,7 +540,7 @@ thread_launch (struct thread *th) {
  * It's not safe to call printf() in the schedule(). */
 void
 do_schedule(int status) {
-	ASSERT (intr_get_level () == INTR_ON);
+	ASSERT (intr_get_level () == INTR_OFF);
 	ASSERT (thread_current()->status == THREAD_RUNNING);
 	
 	while (!list_empty (&destruction_req)) {
