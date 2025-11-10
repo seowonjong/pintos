@@ -90,6 +90,9 @@ timer_elapsed (int64_t then) {
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) { // alarm clock 알람시계 설정해두는 미래시간 설정하는거야
+	if (ticks <= 0)
+		return;
+		
 	int64_t start = timer_ticks ();
 	ASSERT (intr_get_level () == INTR_ON);
 	enum intr_level old_level;
