@@ -26,7 +26,8 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-static struct list ready_list;
+struct list ready_list;
+struct list wait_list;
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -59,10 +60,9 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *next_thread_to_run (void);
 static void init_thread (struct thread *, const char *name, int priority);
-static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
-
+bool list_b(const struct list_elem *a, const struct list_elem *b, void* aux);
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
 
@@ -109,6 +109,7 @@ thread_init (void) {
 	lock_init (&tid_lock);
 	list_init (&ready_list);
 	list_init (&destruction_req);
+	list_init(&wait_list);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -137,7 +138,7 @@ thread_start (void) {
    Thus, this function runs in an external interrupt context. */
 void
 thread_tick (void) {
-	struct thread *t = thread_current ();
+	struct thread *t = thread_current();
 
 	/* Update statistics. */
 	if (t == idle_thread)
@@ -203,10 +204,12 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
-
 	/* Add to run queue. */
 	thread_unblock (t);
-
+	//리스트의 끝점이 아니라면
+	if (list_entry(list_begin(&ready_list), struct thread, elem) != t)
+		return tid;
+	thread_yield();
 	return tid;
 }
 
@@ -216,11 +219,14 @@ thread_create (const char *name, int priority,
    This function must be called with interrupts turned off.  It
    is usually a better idea to use one of the synchronization
    primitives in synch.h. */
+
 void
 thread_block (void) {
 	ASSERT (!intr_context ());
 	ASSERT (intr_get_level () == INTR_OFF);
-	thread_current ()->status = THREAD_BLOCKED;
+	struct thread* t = thread_current();
+
+	t->status = THREAD_BLOCKED;
 	schedule ();
 }
 
@@ -232,6 +238,14 @@ thread_block (void) {
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
+bool list_b (const struct list_elem *a, const struct list_elem *b, void* aux)
+{
+	struct thread* t1 = list_entry(a, struct thread, elem);
+	struct thread* t2 = list_entry(b, struct thread, elem);
+	if (t1->priority > t2->priority)
+		return true;
+	return false;
+}
 void
 thread_unblock (struct thread *t) {
 	enum intr_level old_level;
@@ -240,8 +254,8 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
 	t->status = THREAD_READY;
+	list_insert_ordered(&ready_list, &t->elem, list_b,  NULL);
 	intr_set_level (old_level);
 }
 
@@ -296,22 +310,28 @@ thread_exit (void) {
    may be scheduled again immediately at the scheduler's whim. */
 void
 thread_yield (void) {
-	struct thread *curr = thread_current ();
+	struct thread *curr = thread_current();
 	enum intr_level old_level;
 
-	ASSERT (!intr_context ());
+	ASSERT (!intr_context());
 
-	old_level = intr_disable ();
+	old_level = intr_disable();
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+		list_insert_ordered(&ready_list, &curr->elem, list_b, NULL);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
 
-/* Sets the current thread's priority to NEW_PRIORITY. */
+/* Sets the current thread's priority to NE/"
+]W_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
+	thread_current()->priority = new_priority;
+	thread_current()->origin_priority = new_priority;
+	//리스트의 첫번째 요소의 우선순위와 현재 스레드의 우선순위를 비교,
+	//만약 현재 스레드의 우선순위가 낮다면 yield실행
+	if (list_entry(list_begin(&ready_list), struct thread, elem)->priority > new_priority)
+		thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -408,6 +428,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
+	t->origin_priority = priority;
 	t->magic = THREAD_MAGIC;
 }
 
@@ -525,15 +546,17 @@ thread_launch (struct thread *th) {
  * This function modify current thread's status to status and then
  * finds another thread to run and switches to it.
  * It's not safe to call printf() in the schedule(). */
-static void
+void
 do_schedule(int status) {
 	ASSERT (intr_get_level () == INTR_OFF);
 	ASSERT (thread_current()->status == THREAD_RUNNING);
+	
 	while (!list_empty (&destruction_req)) {
 		struct thread *victim =
-			list_entry (list_pop_front (&destruction_req), struct thread, elem);
+			list_entry (list_pop_front(&destruction_req), struct thread, elem);
 		palloc_free_page(victim);
 	}
+
 	thread_current ()->status = status;
 	schedule ();
 }
@@ -587,4 +610,17 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+struct list* getwaitlist()
+{
+	return &wait_list;
+}
+struct list* getreadylist()
+{
+	return &ready_list;
+}
+void sort_readylist()
+{
+	list_sort(&ready_list, list_b, NULL);
 }
