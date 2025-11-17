@@ -184,7 +184,7 @@ thread_create (const char *name, int priority,
 	tid_t tid;
 
 	ASSERT (function != NULL);
-
+	
 	/* Allocate thread. */
 	t = palloc_get_page (PAL_ZERO);
 	if (t == NULL)
@@ -430,6 +430,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->priority = priority;
 	t->origin_priority = priority;
 	t->magic = THREAD_MAGIC;
+	list_init(&t->donation);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

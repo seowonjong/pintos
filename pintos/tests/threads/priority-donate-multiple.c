@@ -47,7 +47,11 @@ test_priority_donate_multiple (void)
   msg ("Thread b should have just finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 1, thread_get_priority ());
-
+//   for (struct list_elem* e = list_begin(&a.semaphore.waiters); e != list_end(&a.semaphore.waiters); e = list_next(e))
+//   {
+//      struct thread* t = list_entry(e, struct thread, elem);
+//      
+//   }
   lock_release (&a);
   msg ("Thread a should have just finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
