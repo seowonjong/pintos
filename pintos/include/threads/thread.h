@@ -94,10 +94,7 @@ struct thread {
 	int64_t waketime;
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
-	struct list_elem donation_elem;
-	struct list donation;
-	//어떤 락의 의해서 대기를 타고 있는지
-	struct lock* lock;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */

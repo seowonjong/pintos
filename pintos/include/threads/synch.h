@@ -10,6 +10,8 @@ struct semaphore {
 	unsigned value;             /* Current value. */
 	//대기하는 스레드의 리스트 
 	struct list waiters;        /* List of waiting threads. */
+	//들어와있는 스레드
+	struct list threads;
 };
 
 void sema_init (struct semaphore *, unsigned value);
@@ -19,6 +21,7 @@ bool sema_try_down (struct semaphore *);
 //V
 void sema_up (struct semaphore *);
 void sema_self_test (void);
+
 /* Lock. */
 struct lock {
 	//이건 그냥 디버깅용 변수인듯

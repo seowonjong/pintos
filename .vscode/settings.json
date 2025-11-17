@@ -3,8 +3,6 @@
         "list.h": "c",
         "io.h": "c",
         "thread.h": "c",
-        "list": "c",
-        "tests.h": "c",
-        "palloc.h": "c"
+        "list": "c"
     }
 }
