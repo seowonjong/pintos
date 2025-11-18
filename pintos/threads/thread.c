@@ -326,7 +326,8 @@ thread_yield (void) {
 ]W_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current()->priority = new_priority;
+	if (list_empty(&thread_current()->donation))
+		thread_current()->priority = new_priority;
 	thread_current()->origin_priority = new_priority;
 	//리스트의 첫번째 요소의 우선순위와 현재 스레드의 우선순위를 비교,
 	//만약 현재 스레드의 우선순위가 낮다면 yield실행

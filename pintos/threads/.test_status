@@ -1,7 +1,7 @@
 mlfqs-fair-20 PASS
 priority-donate-multiple PASS
 priority-donate-one PASS
-priority-donate-lower FAIL
+priority-donate-lower PASS
 mlfqs-nice-2 FAIL
 priority-preempt PASS
 alarm-simultaneous PASS

@@ -132,6 +132,7 @@ sema_up (struct semaphore *sema) {
 	
 	if (!list_empty (&sema->waiters))
 	{
+		list_sort(&sema->waiters, list_priority_bigger, NULL);
 		struct thread* t = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
 		thread_unblock (t);
 	}
@@ -220,7 +221,7 @@ void donate_priority_chain(struct thread* e)
 		sort_readylist();
 	else
 	{
-		list_sort(&e->lock->semaphore.waiters, list_priority_bigger2, NULL);
+		list_sort(&e->lock->semaphore.waiters, list_priority_bigger, NULL);
 		donate_priority_chain(e->lock->holder);
 	}
 	
