@@ -3,6 +3,7 @@
         "list.h": "c",
         "io.h": "c",
         "thread.h": "c",
-        "list": "c"
+        "list": "c",
+        "*.inc": "c"
     }
 }
